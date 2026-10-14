@@ -1,0 +1,7 @@
+# packaged and installer files
+/release-builds
+/windows_installer
+
+# modules and package lock
+/node_modules/*
+package-lock.json

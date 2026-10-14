@@ -1,0 +1,301 @@
+const electron = require('electron');
+const axios = require('axios');
+const Store = require('electron-store');
+const store = new Store();
+const { desktopCapturer, remote, shell, ipcRenderer } = electron;
+const { screen } = remote;
+const { dialog } = electron.remote;
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+var CryptoJS = require("crypto-js");
+const minimizeclick = document.getElementById("minimizeclick");
+const logOutclick = document.getElementById("logOutclick");
+const testCheckclick = document.getElementById("testCheckclick");
+const checkOutclick = document.getElementById("checkOutclick");
+
+// ===========UNCOMMENT FOR MANUAL CAPTURE SCREEN=============
+// const captureScreenclick = document.getElementById("captureScreenclick");
+// env for API
+process.env.DB_HOST = 'https://ascend.nextbposolutions.com/index.php/api/';
+
+minimizeclick.addEventListener('click', function(event){minimize()});
+logOutclick.addEventListener('click', function(event){logOut()});
+testCheckclick.addEventListener('click', function(event){testCheck()});
+checkOutclick.addEventListener('click', function(event){checkOut()});
+
+// ===========UNCOMMENT FOR MANUAL CAPTURE SCREEN=============
+// captureScreenclick.addEventListener('click', function(event){captureScreen()});
+
+// declare check in and checkout button variables
+var divIn = document.getElementById('divIn');
+var divOut = document.getElementById('divOut');
+var seconds;
+// get user token to set as bearer token
+const token = localStorage.getItem('user-token');
+axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+// call functions
+displayLiveDT();
+checkResume();
+
+// ===========UNCOMMENT FOR MANUAL CAPTURE SCREEN=============
+// checkSSbutton();
+// ipcRenderer.on('screenshotLan:setting', function(e){
+//     console.log('LANDING PAGE: ' + store.get('screenshot_setting'));
+//     checkSSbutton();
+//     M.toast({html: store.get('screenshot_setting') + ' Mode', displayLength: 1000});
+// });
+
+// set user name
+document.getElementById('user').innerHTML = localStorage.getItem('user-name');
+
+// live date and time
+function displayLiveDT() {
+    function dateTimeCounter() {
+        // axios.get(process.env.DB_HOST + 'employee/dashboard',
+        // {
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        // },
+        // }).then((response) => {
+        //     const t = response.data.server_time;
+        //     var time = moment(t);
+        //     document.getElementById('time').innerHTML = time.format('MMMM D, YYYY - hh:mm A');
+        // }).catch((error) => {
+        //     console.log(error);
+        // });
+        document.getElementById('time').innerHTML = moment().format('MMMM D, YYYY - hh:mm A');
+    }
+    dateTimeCounter();
+    window.setInterval(dateTimeCounter, 10000);
+    // window.setInterval(generateRandom, 2000);
+    // window.setInterval(generateRandomSecond, 2000);
+}
+
+// resume checker
+function checkResume() {
+    const status = localStorage.getItem('status');
+    if (status == 'new' || status == 'done') {
+        divOut.style.display = 'none';
+        if (status == 'done') {
+            document.getElementById('timein').innerHTML = localStorage.getItem('user-timein');
+            document.getElementById('timeout').innerHTML = localStorage.getItem('user-timeout');
+            document.getElementById('datein').innerHTML = localStorage.getItem('user-datein');
+            document.getElementById('dateout').innerHTML = localStorage.getItem('user-dateout');
+        }
+    }
+    if (status == 'resume') {
+        divIn.style.display = 'none';
+        document.getElementById('timein').innerHTML = localStorage.getItem('user-timein');
+        document.getElementById('datein').innerHTML = localStorage.getItem('user-datein');
+    }
+}
+
+// check duplicate time in
+function testCheck() {
+    axios.get(process.env.DB_HOST + 'employee/dashboard',
+    {
+        headers: { 
+            'Content-Type': 'application/json'
+        },
+    }).then((response) => {
+        var dateLastCheckin;
+        const dateNow = moment().format('YYYY-MM-DD');
+        if (response.data.timelog != null) {
+            const dateRestrict = moment(response.data.timelog.date).format('YYYY-MM-DD');
+            dateLastCheckin = dateRestrict;
+        } else {
+            dateLastCheckin = null;
+        }
+            if (dateLastCheckin == dateNow) {
+                const options = {
+                    title: 'Check In',
+                    type: 'warning',
+                    message: 'You already checked in today. Would you like to proceed?',
+                    buttons: ['Yes', 'No']
+                };
+                dialog.showMessageBox(null, options).then(res => {
+                    if (res.response == 0) {
+                        localStorage.setItem('seconds', 0);
+                        checkIn();
+                    }
+                });
+            } else {
+                checkIn();
+            }
+    }).catch((error) => {
+        console.log(error);
+        M.toast({html: 'Connect to Server Failed...', displayLength: 1000});
+    });
+}
+
+// save time in
+function checkIn() {
+    
+    // save to DB
+    axios.post(process.env.DB_HOST + 'employee/check-in',
+    {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    }).then((response) => {
+        // hide checkin div
+        divIn.style.display = 'none';
+        divOut.style.display = 'block';
+        const t = moment(response.data.time_from).format('hh:mm A');
+        const d = moment(response.data.time_from).format('YYYY/MM/DD');
+        document.getElementById('timein').innerHTML = t;
+        document.getElementById('timeout').innerHTML = '--:-- --';
+        document.getElementById('datein').innerHTML = d;
+        document.getElementById('dateout').innerHTML = 'YYYY/MM/DD';
+        localStorage.setItem('user-timein', t);
+        localStorage.setItem('user-timein-raw', moment(response.data.time_from));
+        localStorage.setItem('user-datein', d);
+        localStorage.setItem('status', 'resume');
+        store.set('screenshot_limit', 1);
+        store.set('screenshot_toggle', 'START');
+        store.set('timesheet_id', response.data.id);
+        // snipWindow('IN');
+        M.toast({html: 'Time-in saved', displayLength: 2000});
+    }).catch((error) => {
+        console.log(error);
+        M.toast({html: 'Connect to Server Failed...', displayLength: 1000});
+    });
+}
+
+// time out
+function checkOut() {
+    const options = {
+        title: 'Check Out',
+        type: 'warning',
+        message: 'Check out time can\'t be changed after saving. Would you like to proceed?',
+        buttons: ['Yes', 'No']
+    };
+    dialog.showMessageBox(null, options).then(res => {
+        if (res.response == 0) {
+            // save to DB
+            axios.post(process.env.DB_HOST + 'employee/check-out',
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then((response) => {
+                // hide checkout div
+                divIn.style.display = 'block';
+                divOut.style.display = 'none';
+                const t = moment(response.data.time_to).format('hh:mm A');
+                const d = moment(response.data.time_to).format('YYYY/MM/DD');
+                document.getElementById('timeout').innerHTML = t;
+                document.getElementById('dateout').innerHTML = d;
+                localStorage.setItem('user-timeout', t);
+                localStorage.setItem('user-dateout', d);
+                localStorage.setItem('status', 'done');
+                store.set('screenshot_toggle', 'STOP');
+                // snipWindow('OUT');
+                M.toast({html: 'Time-out saved', displayLength: 2000});
+            }).catch((error) => {
+                console.log(error);
+                M.toast({html: 'Connect to Server Failed...', displayLength: 1000});
+            });
+        }
+    });
+}
+
+// logout
+function logOut() {
+    if (localStorage.getItem('status') == 'resume') {
+        const options = {
+        title: 'Logout',
+        type: 'error',
+        message: 'Logout is not allowed',
+        detail: 'Please click the "TIME-OUT" button first.'
+        };
+        dialog.showMessageBox(null, options);
+    } else {
+        localStorage.removeItem('user-name');
+        localStorage.removeItem('user-token');
+        localStorage.removeItem('user-timein');
+        localStorage.removeItem('user-timein-raw');
+        localStorage.removeItem('user-timeout');
+        localStorage.removeItem('user-datein');
+        localStorage.removeItem('user-dateout');
+        localStorage.removeItem('status');
+        localStorage.removeItem('seconds');
+        const remote = electron.remote;
+        let w = remote.getCurrentWindow();
+        w.close();
+        ipcRenderer.send('login:success'); 
+    }
+}
+
+function minimize() {
+    const remote = electron.remote;
+    let w = remote.getCurrentWindow();
+    w.minimize();
+}
+
+// screenshot function
+function captureScreen() {
+    var limit = store.get('screenshot_limit');
+    var tId = store.get('timesheet_id');
+    if (store.get('screenshot_toggle') == 'START') {
+        // limit++;
+        // store.set('screenshot_limit', limit);
+        // const remote = electron.remote;
+        // let w = remote.getCurrentWindow();
+        // w.hide();
+        // screenShot(limit-1, tId);
+        screenShot(limit, tId);
+    } else {
+        if (store.get('screenshot_toggle') != 'START') {
+            M.toast({html: 'Please click TIME-IN first!', displayLength: 1000});
+        } else {
+            if (store.get('screenshot_toggle') != 'Auto') {
+                M.toast({html: 'Screenshot Limit Reached!', displayLength: 1000});
+            }
+        }
+    }
+}
+
+setInterval(captureScreen, 300000);
+
+function generateRandom() {
+    if (store.get('screenshot_setting') == 'Auto' && store.get('screenshot_limit') <= 50000 && store.get('screenshot_toggle') == 'START') {
+        var bool = Math.random() >= 0.9;
+        var initialTime = localStorage.getItem('user-timein-raw');
+        var currentTime = moment();
+        var ssLimit = store.get('screenshot_limit');
+        var diffTime = currentTime.diff(initialTime);
+        if (bool == true) {
+            // console.log('Time: ' + moment().format('hh:mm:ss A')  + bool);
+            if (ssLimit < 1000 && diffTime <= 300000) {
+                captureScreen();
+            }
+        }
+    }
+}
+
+function generateRandomSecond() {
+    if (store.get('screenshot_setting') == 'Auto' && store.get('screenshot_limit') <= 50000 && store.get('screenshot_toggle') == 'START') {
+        var bool = Math.random() >= 0.9;
+        var initialTime = localStorage.getItem('user-timein-raw');
+        var currentTime = moment();
+        var ssLimit = store.get('screenshot_limit');
+        var diffTime = currentTime.diff(initialTime);
+        if (bool == true) {
+            // console.log('Time: ' + moment().format('hh:mm:ss A')  + bool);
+            if (ssLimit >= 1000 && ssLimit < 50000 && diffTime > 300000 && diffTime <= 32400000) {
+                captureScreen();
+            }
+        }
+    }
+}
+
+// ===========UNCOMMENT FOR MANUAL CAPTURE SCREEN=============
+// function checkSSbutton() {
+//     if (store.get('screenshot_setting') == 'Auto') {
+//         captureScreenclick.style.visibility = 'hidden';
+//     } else {
+//         captureScreenclick.style.visibility = 'visible';
+//     }
+// }

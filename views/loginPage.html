@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://ascend.nextbposolutions.com/index.php/api/; script-src 'nonce-rAnD0MscriPt'; script-src-elem 'nonce-rAnD0MscriPt'; style-src 'nonce-RaNd0mStyL3'; style-src-elem 'self';">
+    <link nonce="RaNd0mStyL3" rel="stylesheet" href="../assets/css/materialize.min.css">
+    <link nonce="RaNd0mStyL3" rel="stylesheet" href="../assets/css/custom.min.css">
+    <script nonce="rAnD0MscriPt" src="../assets/js/materialize.min.js"></script>
+    <script nonce="rAnD0MscriPt" src="../assets/js/moment.min.js"></script>
+    <script nonce="rAnD0MscriPt" src="../assets/js/moment-with-locales.min.js"></script>
+</head>
+<body>
+    <div class="row">
+        <div class="col s7 left-align">
+            <!-- VERSION NUMBER CHANGE -->
+            <p class="version-number">Version 1.1 - "5 mins SS"</p>
+        </div>
+        <div class="col s5 m7 l7 right-align padded-buttons">
+            <button class="btn btn-small white teal-text text-darken-2 btn-minimize no-drag" type="submit" name="action" id="minimizeclick"><span class="material-icons">minimize</span></button>
+            <button class="btn btn-small white teal-text text-darken-2 btn-exit no-drag" type="submit" name="action" id="exitclick"><span class="material-icons">clear</span></button>
+        </div>
+        
+        <div class="col s8 m8 l8 offset-s2 offset-m2 offset-l2">
+            <h3 class="text-normal">Sign-in</h3>
+            <h6 class="text-normal">Hello! Let's get started</h6>
+        </div>
+    </div>
+    <div class="row">
+        <div class="input-field col s8 m8 l8 offset-s2 offset-m2 offset-l2">
+            <input id="username" type="text" class="validate username-field no-drag">
+            <label for="username">Username</label>
+        </div>
+        <div class="input-field col s8 m8 l8 offset-s2 offset-m2 offset-l2">
+            <input id="password" type="password" class="validate password-field no-drag">
+            <label for="password">Password</label>
+        </div>
+        <div class="col s5 m5 l5 offset-s2 offset-m2 offset-l2">
+            <label>
+                <input id="remember" type="checkbox" class="filled-in no-drag" checked="checked" />
+                <span class="remember-text white-text no-drag">Remember Me</span>
+            </label>
+        </div>
+        <div class="col s3 m3 l3">
+            <button class="btn btn-small white teal-text text-darken-2 no-drag text-bold" type="submit" name="action" id="loginclick">Proceed</button>
+        </div>
+    </div>
+    <script nonce="rAnD0MscriPt" src="../assets/js/functions/loginpage.js"></script>
+</body>
+</html>
